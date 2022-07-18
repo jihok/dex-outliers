@@ -1,11 +1,7 @@
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 import altair as alt
 import pandas as pd
 from subgrounds.subgrounds import Subgrounds
-
-# Refresh every 30 seconds
-REFRESH_INTERVAL_SEC = 30
 
 sg = Subgrounds()
 subgraphs = {
@@ -15,10 +11,72 @@ subgraphs = {
     "apeswap-bsc": sg.load_subgraph(
         "https://api.thegraph.com/subgraphs/name/messari/apeswap-bsc"
     ),
+    "sushiswap-arbitrum": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-arbitrum"
+    ),
+    "sushiswap-avalanche": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-avalanche"
+    ),
+    "sushiswap-bsc": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-bsc"
+    ),
+    "sushiswap-celo": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-celo"
+    ),
+    "sushiswap-fantom": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-fantom"
+    ),
+    "sushiswap-fuse": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-fuse"
+    ),
+    "sushiswap-ethereum": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-ethereum"
+    ),
     "sushiswap-polygon": sg.load_subgraph(
         "https://api.thegraph.com/subgraphs/name/messari/sushiswap-polygon"
     ),
-
+    "sushiswap-moonbeam": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-moonbeam"
+    ),
+    "sushiswap-moonriver": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-moonriver"
+    ),
+    "sushiswap-gnosis": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-gnosis"
+    ),
+    "solarbeam-moonriver": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/solarbeam-moonriver"
+    ),
+    "spiritswap-fantom": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/spiritswap-fantom"
+    ),
+    "spookyswap-fantom": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/spookyswap-fantom"
+    ),
+    "trader-joe-avalanche": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/trader-joe-avalanche"
+    ),
+    # "trisolaris-aurora": sg.load_subgraph(
+    #     "https://api.thegraph.com/subgraphs/name/messari/trisolaris-aurora"
+    # ),
+    "ubeswap-celo": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/ubeswap-celo"
+    ),
+    "uniswap-v2-ethereum": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/uniswap-v2-ethereum"
+    ),
+    "quickswap-polygon": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/quickswap-polygon"
+    ),
+    # "vvs-finance-cronos": sg.load_subgraph(
+    #     "https://api.thegraph.com/subgraphs/name/messari/vvs-finance-cronos"
+    # ),
+    "honeyswap-gnosis": sg.load_subgraph(
+        "https://api.thegraph.com/subgraphs/name/messari/honeyswap-gnosis"
+    ),
+    # "honeyswap-polygon": sg.load_subgraph(
+    #     "https://api.thegraph.com/subgraphs/name/messari/honeyswap-polygon"
+    # ),
 }
 
 
@@ -51,39 +109,51 @@ def fetch_data(network, subgraph):
 
 def get_big_swaps_df(network, subgraph):
     big_swaps = subgraph.Query.swaps(
-        where=[subgraph.Swap.amountInUSD > 1_000_000],
+        where=[subgraph.Swap.amountInUSD > 1_000_000_000],
         orderBy=subgraph.Swap.amountInUSD,
         orderDirection="desc",
         first=10,
     )
-    print(big_swaps)
+
     big_swaps_df = sg.query_df(
         [
             big_swaps.id,
-            big_swaps.tokenIn,
+            big_swaps.tokenIn.id,
+            big_swaps.tokenIn.name,
+            big_swaps.tokenIn.symbol,
+            big_swaps.tokenIn.lastPriceUSD,
             big_swaps.amountInUSD,
+            big_swaps.amountOutUSD,
         ]
     )
     print(big_swaps_df)
-    big_swaps_df["network"] = network
-    # big_swaps_df["date"] = pd.to_datetime(big_swaps_df["id"], unit="d")
-    # big_swaps_df = big_swaps_df.drop(columns="id")
+    big_swaps_df["Deployment"] = network
+    big_swaps_df = big_swaps_df.rename(columns={
+        'swaps_id': 'Tx Hash',
+        'swaps_tokenIn_id': 'Token In Address',
+        'swaps_tokenIn_name': 'Token In Name',
+        'swaps_tokenIn_symbol': 'Token In Symbol',
+        'swaps_tokenIn_lastPriceUSD': 'Token In Last Price USD',
+        'swaps_amountInUSD': 'Amount In USD',
+        'swaps_amountOutUSD': 'Amount Out USD',
+    })
 
     return big_swaps_df
 
 
 st.set_page_config(page_icon="🔎", layout="wide")
-ticker = st_autorefresh(interval=REFRESH_INTERVAL_SEC * 1000, key="ticker")
 st.title("anAMMolies")
 
-data_loading = st.text(
-    f"[Every {REFRESH_INTERVAL_SEC} seconds] Loading data...")
+data_loading = st.text("Loading data...")
 df = pd.concat(
     map(lambda x: fetch_data(x, subgraphs[x]), subgraphs.keys()),
     axis=0,
 )
-data_loading.text(
-    f"[Every {REFRESH_INTERVAL_SEC} seconds] Loading data... done!")
+big_swaps_df = pd.concat(
+    map(lambda x: get_big_swaps_df(x, subgraphs[x]), subgraphs.keys()),
+    axis=0,
+)
+data_loading.text("Loading data... done!")
 
 # Plot charts with altair is like a breeze
 st.header("Revenue")
@@ -114,9 +184,5 @@ volume_norm_stacked_area_chart = (
 )
 st.altair_chart(volume_norm_stacked_area_chart, use_container_width=True)
 
-big_swaps_df = pd.concat(
-    map(lambda x: get_big_swaps_df(x, subgraphs[x]), subgraphs.keys()),
-    axis=0,
-)
 print(big_swaps_df)
 st.markdown(big_swaps_df.to_markdown())
