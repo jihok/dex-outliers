@@ -4,6 +4,7 @@ import pandas as pd
 from subgrounds.subgrounds import Subgrounds
 
 sg = Subgrounds()
+
 subgraphs = {
     "apeswap-polygon": sg.load_subgraph(
         "https://api.thegraph.com/subgraphs/name/messari/apeswap-polygon"
@@ -102,6 +103,7 @@ def fetch_data(network, subgraph):
 
     df = financial_df
     df["network"] = network
+    print('🔥', df["id"])
     df["date"] = pd.to_datetime(df["id"], unit="d")
     df = df.drop(columns="id")
     return df
@@ -144,45 +146,43 @@ def get_big_swaps_df(network, subgraph):
 st.set_page_config(page_icon="🔎", layout="wide")
 st.title("anAMMolies")
 
+choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
+
 data_loading = st.text("Loading data...")
-df = pd.concat(
-    map(lambda x: fetch_data(x, subgraphs[x]), subgraphs.keys()),
-    axis=0,
-)
+
 big_swaps_df = pd.concat(
     map(lambda x: get_big_swaps_df(x, subgraphs[x]), subgraphs.keys()),
     axis=0,
 )
-data_loading.text("Loading data... done!")
-
-# Plot charts with altair is like a breeze
-st.header("Revenue")
-rev_stacked_bar_chart = (
-    alt.Chart(df)
-    .mark_bar()
-    .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q", color="network:N")
-)
-st.altair_chart(rev_stacked_bar_chart, use_container_width=True)
-
-st.header("TVL")
-tvl_stacked_bar_chart = (
-    alt.Chart(df)
-    .mark_bar()
-    .encode(x="date:T", y="totalValueLockedUSD:Q", color="network:N")
-)
-st.altair_chart(tvl_stacked_bar_chart, use_container_width=True)
-
-st.header("Volume")
-volume_norm_stacked_area_chart = (
-    alt.Chart(df)
-    .mark_area()
-    .encode(
-        x="date:T",
-        y=alt.Y("cumulativeVolumeUSD:Q", stack="normalize"),
-        color="network:N",
-    )
-)
-st.altair_chart(volume_norm_stacked_area_chart, use_container_width=True)
-
-print(big_swaps_df)
+st.header("Potential Outlier Swaps")
 st.markdown(big_swaps_df.to_markdown())
+
+if (choice == "Revenue"):
+    for network in subgraphs.keys():
+        df = fetch_data(network, subgraphs[network])
+        chart = (
+            alt.Chart(df, title=network)
+            .mark_area()
+            .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
+        )
+        st.altair_chart(chart, use_container_width=True)
+elif (choice == "TVL"):
+    for network in subgraphs.keys():
+        df = fetch_data(network, subgraphs[network])
+        chart = (
+            alt.Chart(df, title=network)
+            .mark_area()
+            .encode(x="date:T", y="totalValueLockedUSD:Q")
+        )
+        st.altair_chart(chart, use_container_width=True)
+elif (choice == "Volume"):
+    for network in subgraphs.keys():
+        df = fetch_data(network, subgraphs[network])
+        chart = (
+            alt.Chart(df, title=network)
+            .mark_area()
+            .encode(x="date:T", y="cumulativeVolumeUSD:Q")
+        )
+        st.altair_chart(chart, use_container_width=True)
+
+data_loading.text("Loading data... done!")
