@@ -2,83 +2,40 @@ import streamlit as st
 import altair as alt
 import pandas as pd
 from subgrounds.subgrounds import Subgrounds
+import requests
 
 sg = Subgrounds()
+deployment_names = [
+    "apeswap-bsc",
+    "apeswap-polygon",
+    "honeyswap-gnosis",
+    # "honeyswap-polygon",
+    "quickswap-polygon",
+    "solarbeam-moonriver",
+    "spiritswap-fantom",
+    "spookyswap-fantom",
+    "sushiswap-arbitrum",
+    "sushiswap-avalanche",
+    "sushiswap-bsc",
+    "sushiswap-celo",
+    "sushiswap-ethereum",
+    "sushiswap-fantom",
+    "sushiswap-fuse",
+    "sushiswap-gnosis",
+    "sushiswap-moonbeam",
+    "sushiswap-moonriver",
+    "sushiswap-polygon",
+    "trader-joe-avalanche",
+    # "trisolaris-aurora",
+    "ubeswap-celo",
+    "uniswap-v2-ethereum",
+    # "vvs-finance-cronos",
+]
+subgraphs = {}
+st.set_page_config(page_icon="🔎", layout="wide")
+st.title("anAMMolies")
 
-subgraphs = {
-    "apeswap-polygon": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/apeswap-polygon"
-    ),
-    "apeswap-bsc": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/apeswap-bsc"
-    ),
-    "sushiswap-arbitrum": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-arbitrum"
-    ),
-    "sushiswap-avalanche": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-avalanche"
-    ),
-    "sushiswap-bsc": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-bsc"
-    ),
-    "sushiswap-celo": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-celo"
-    ),
-    "sushiswap-fantom": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-fantom"
-    ),
-    "sushiswap-fuse": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-fuse"
-    ),
-    "sushiswap-ethereum": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-ethereum"
-    ),
-    "sushiswap-polygon": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-polygon"
-    ),
-    "sushiswap-moonbeam": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-moonbeam"
-    ),
-    "sushiswap-moonriver": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-moonriver"
-    ),
-    "sushiswap-gnosis": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/sushiswap-gnosis"
-    ),
-    "solarbeam-moonriver": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/solarbeam-moonriver"
-    ),
-    "spiritswap-fantom": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/spiritswap-fantom"
-    ),
-    "spookyswap-fantom": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/spookyswap-fantom"
-    ),
-    "trader-joe-avalanche": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/trader-joe-avalanche"
-    ),
-    # "trisolaris-aurora": sg.load_subgraph(
-    #     "https://api.thegraph.com/subgraphs/name/messari/trisolaris-aurora"
-    # ),
-    "ubeswap-celo": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/ubeswap-celo"
-    ),
-    "uniswap-v2-ethereum": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/uniswap-v2-ethereum"
-    ),
-    "quickswap-polygon": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/quickswap-polygon"
-    ),
-    # "vvs-finance-cronos": sg.load_subgraph(
-    #     "https://api.thegraph.com/subgraphs/name/messari/vvs-finance-cronos"
-    # ),
-    "honeyswap-gnosis": sg.load_subgraph(
-        "https://api.thegraph.com/subgraphs/name/messari/honeyswap-gnosis"
-    ),
-    # "honeyswap-polygon": sg.load_subgraph(
-    #     "https://api.thegraph.com/subgraphs/name/messari/honeyswap-polygon"
-    # ),
-}
+# fetch financial data for given subgraph
 
 
 def fetch_data(network, subgraph):
@@ -101,12 +58,12 @@ def fetch_data(network, subgraph):
         columns=lambda x: x[len("financialsDailySnapshots_"):]
     )
 
-    df = financial_df
-    df["network"] = network
-    print('🔥', df["id"])
-    df["date"] = pd.to_datetime(df["id"], unit="d")
-    df = df.drop(columns="id")
-    return df
+    financial_df["network"] = network
+    financial_df["date"] = pd.to_datetime(financial_df["id"], unit="d")
+    financial_df = financial_df.drop(columns="id")
+    return financial_df
+
+# fetch potential outlier swaps for given subgraph
 
 
 def get_big_swaps_df(network, subgraph):
@@ -128,7 +85,7 @@ def get_big_swaps_df(network, subgraph):
             big_swaps.amountOutUSD,
         ]
     )
-    print(big_swaps_df)
+
     big_swaps_df["Deployment"] = network
     big_swaps_df = big_swaps_df.rename(columns={
         'swaps_id': 'Tx Hash',
@@ -143,12 +100,30 @@ def get_big_swaps_df(network, subgraph):
     return big_swaps_df
 
 
-st.set_page_config(page_icon="🔎", layout="wide")
-st.title("anAMMolies")
-
 choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
 
 data_loading = st.text("Loading data...")
+
+# build subgraphs dict by checking for pending
+for x in deployment_names:
+    res = requests.post("https://api.thegraph.com/index-node/graphql", json={
+        "operationName": "Status",
+        "query": "query Status($subgraphName: String) {\n  indexingStatusForPendingVersion(subgraphName: $subgraphName) {\n    subgraph\n    health\n    entityCount\n    __typename\n  }\n}",
+        "variables": {"subgraphName": "messari/" + x}
+    })
+    indexingStatusForPendingVerion = res.json(
+    )["data"]["indexingStatusForPendingVersion"]
+    if (indexingStatusForPendingVerion is None):
+        subgraphs[x] = sg.load_subgraph(
+            f"https://api.thegraph.com/subgraphs/name/messari/{x}")
+    elif (indexingStatusForPendingVerion["entityCount"] == "0"):
+        subgraphs[x] = sg.load_subgraph(
+            f"https://api.thegraph.com/subgraphs/name/messari/{x}")
+    else:
+        print(indexingStatusForPendingVerion)
+        id = indexingStatusForPendingVerion["subgraph"]
+        subgraphs[f"{x} (pending)"] = sg.load_subgraph(
+            f"https://api.thegraph.com/subgraphs/id/{id}")
 
 big_swaps_df = pd.concat(
     map(lambda x: get_big_swaps_df(x, subgraphs[x]), subgraphs.keys()),
