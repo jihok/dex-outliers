@@ -4,7 +4,13 @@ import pandas as pd
 from subgrounds.subgrounds import Subgrounds
 import requests
 
+
+st.set_page_config(page_icon="🔎", layout="wide")
+st.title("anAMMolies")
+
 sg = Subgrounds()
+
+# TODO: this should be fetched from config json
 deployment_names = [
     "apeswap-bsc",
     "apeswap-polygon",
@@ -31,9 +37,6 @@ deployment_names = [
     "uniswap-v2-ethereum",
     # "vvs-finance-cronos",
 ]
-subgraphs = {}
-st.set_page_config(page_icon="🔎", layout="wide")
-st.title("anAMMolies")
 
 # fetch financial data for given subgraph
 
@@ -100,64 +103,75 @@ def get_big_swaps_df(network, subgraph):
     return big_swaps_df
 
 
-choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
+if 'subgraphs' not in st.session_state:
+    st.session_state['subgraphs'] = {}
+
+if 'financial_dfs' not in st.session_state:
+    st.session_state['financial_dfs'] = {}
 
 data_loading = st.text("Loading data...")
 
-# build subgraphs dict by checking for pending
-for x in deployment_names:
-    res = requests.post("https://api.thegraph.com/index-node/graphql", json={
-        "operationName": "Status",
-        "query": "query Status($subgraphName: String) {\n  indexingStatusForPendingVersion(subgraphName: $subgraphName) {\n    subgraph\n    health\n    entityCount\n    __typename\n  }\n}",
-        "variables": {"subgraphName": "messari/" + x}
-    })
-    indexingStatusForPendingVerion = res.json(
-    )["data"]["indexingStatusForPendingVersion"]
-    if (indexingStatusForPendingVerion is None):
-        subgraphs[x] = sg.load_subgraph(
-            f"https://api.thegraph.com/subgraphs/name/messari/{x}")
-    elif (indexingStatusForPendingVerion["entityCount"] == "0"):
-        subgraphs[x] = sg.load_subgraph(
-            f"https://api.thegraph.com/subgraphs/name/messari/{x}")
-    else:
-        print(indexingStatusForPendingVerion)
-        id = indexingStatusForPendingVerion["subgraph"]
-        subgraphs[f"{x} (pending)"] = sg.load_subgraph(
-            f"https://api.thegraph.com/subgraphs/id/{id}")
+# build subgraphs dict in session state by loading pending version if applicable or current version otherwise
+if (len(st.session_state['subgraphs']) == 0):
+    for x in deployment_names:
+        res = requests.post("https://api.thegraph.com/index-node/graphql", json={
+            "operationName": "Status",
+            "query": "query Status($subgraphName: String) {\n  indexingStatusForPendingVersion(subgraphName: $subgraphName) {\n    subgraph\n    health\n    entityCount\n    __typename\n  }\n}",
+            "variables": {"subgraphName": "messari/" + x}
+        })
+        indexingStatusForPendingVerion = res.json(
+        )["data"]["indexingStatusForPendingVersion"]
+        if (indexingStatusForPendingVerion is None):
+            st.session_state['subgraphs'][x] = sg.load_subgraph(
+                f"https://api.thegraph.com/subgraphs/name/messari/{x}")
+        elif (indexingStatusForPendingVerion["entityCount"] == "0"):
+            st.session_state['subgraphs'][x] = sg.load_subgraph(
+                f"https://api.thegraph.com/subgraphs/name/messari/{x}")
+        else:
+            id = indexingStatusForPendingVerion["subgraph"]
+            st.session_state['subgraphs'][f"{x} (pending)"] = sg.load_subgraph(
+                f"https://api.thegraph.com/subgraphs/id/{id}")
 
-big_swaps_df = pd.concat(
-    map(lambda x: get_big_swaps_df(x, subgraphs[x]), subgraphs.keys()),
-    axis=0,
-)
+# make big_swaps_df after ensuring the subgraphs are in session state
+if 'big_swaps_df' not in st.session_state:
+    st.session_state['big_swaps_df'] = {} if 'subgraphs' not in st.session_state else pd.concat(
+        map(lambda x: get_big_swaps_df(
+            x, st.session_state['subgraphs'][x]), st.session_state['subgraphs'].keys()),
+        axis=0,
+    )
+
 st.header("Potential Outlier Swaps")
-st.markdown(big_swaps_df.to_markdown())
+st.markdown(st.session_state['big_swaps_df'].to_markdown())
 
-if (choice == "Revenue"):
-    for network in subgraphs.keys():
-        df = fetch_data(network, subgraphs[network])
+choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
+
+for network in st.session_state['subgraphs'].keys():
+    # always store in session state if doesn't exist there
+    if network not in st.session_state['financial_dfs']:
+        st.session_state['financial_dfs'][network] = fetch_data(
+            network, st.session_state['subgraphs'][network])
+
+    if (choice == "Revenue"):
         chart = (
-            alt.Chart(df, title=network)
+            alt.Chart(st.session_state['financial_dfs']
+                      [network], title=network)
             .mark_area()
             .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
         )
-        st.altair_chart(chart, use_container_width=True)
-elif (choice == "TVL"):
-    for network in subgraphs.keys():
-        df = fetch_data(network, subgraphs[network])
+    elif (choice == "TVL"):
         chart = (
-            alt.Chart(df, title=network)
+            alt.Chart(st.session_state['financial_dfs']
+                      [network], title=network)
             .mark_area()
             .encode(x="date:T", y="totalValueLockedUSD:Q")
         )
-        st.altair_chart(chart, use_container_width=True)
-elif (choice == "Volume"):
-    for network in subgraphs.keys():
-        df = fetch_data(network, subgraphs[network])
+    elif (choice == "Volume"):
         chart = (
-            alt.Chart(df, title=network)
+            alt.Chart(st.session_state['financial_dfs']
+                      [network], title=network)
             .mark_area()
             .encode(x="date:T", y="cumulativeVolumeUSD:Q")
         )
-        st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, use_container_width=True)
 
 data_loading.text("Loading data... done!")
