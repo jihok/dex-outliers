@@ -145,33 +145,44 @@ st.markdown(st.session_state['big_swaps_df'].to_markdown())
 
 choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
 
-for network in st.session_state['subgraphs'].keys():
-    # always store in session state if doesn't exist there
-    if network not in st.session_state['financial_dfs']:
-        st.session_state['financial_dfs'][network] = fetch_data(
-            network, st.session_state['subgraphs'][network])
 
-    if (choice == "Revenue"):
-        chart = (
-            alt.Chart(st.session_state['financial_dfs']
-                      [network], title=network)
-            .mark_area()
-            .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
-        )
-    elif (choice == "TVL"):
-        chart = (
-            alt.Chart(st.session_state['financial_dfs']
-                      [network], title=network)
-            .mark_area()
-            .encode(x="date:T", y="totalValueLockedUSD:Q")
-        )
-    elif (choice == "Volume"):
-        chart = (
-            alt.Chart(st.session_state['financial_dfs']
-                      [network], title=network)
-            .mark_area()
-            .encode(x="date:T", y="cumulativeVolumeUSD:Q")
-        )
+# TODO: allow_output_mutation is not ideal, but chart dict seems to cache properly anyway ?
+@st.cache(allow_output_mutation=True)
+def generate_charts(chart_type):
+    charts = []
+    for network in st.session_state['subgraphs'].keys():
+        # always store in session state if doesn't exist there
+        if network not in st.session_state['financial_dfs']:
+            st.session_state['financial_dfs'][network] = fetch_data(
+                network, st.session_state['subgraphs'][network])
+
+        if (chart_type == "Revenue"):
+            chart = (
+                alt.Chart(st.session_state['financial_dfs']
+                          [network], title=network)
+                .mark_area()
+                .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
+            )
+        elif (chart_type == "TVL"):
+            chart = (
+                alt.Chart(st.session_state['financial_dfs']
+                          [network], title=network)
+                .mark_area()
+                .encode(x="date:T", y="totalValueLockedUSD:Q")
+            )
+        elif (chart_type == "Volume"):
+            chart = (
+                alt.Chart(st.session_state['financial_dfs']
+                          [network], title=network)
+                .mark_area()
+                .encode(x="date:T", y="cumulativeVolumeUSD:Q")
+            )
+        charts.append(chart)
+    return charts
+
+
+gen_charts = generate_charts(choice)
+for chart in gen_charts:
     st.altair_chart(chart, use_container_width=True)
 
 data_loading.text("Loading data... done!")
