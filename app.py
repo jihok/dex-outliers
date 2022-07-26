@@ -143,11 +143,11 @@ if 'big_swaps_df' not in st.session_state:
 st.header("Potential Outlier Swaps")
 st.markdown(st.session_state['big_swaps_df'].to_markdown())
 
+data_loading.text("Loading data... done!")
+
 choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
 
 
-# TODO: allow_output_mutation is not ideal, but chart dict seems to cache properly anyway ?
-@st.cache(allow_output_mutation=True)
 def generate_charts(chart_type):
     charts = []
     for network in st.session_state['subgraphs'].keys():
@@ -157,32 +157,69 @@ def generate_charts(chart_type):
                 network, st.session_state['subgraphs'][network])
 
         if (chart_type == "Revenue"):
-            chart = (
-                alt.Chart(st.session_state['financial_dfs']
-                          [network], title=network)
-                .mark_area()
-                .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
-            )
+            if 'revenue_charts' not in st.session_state:
+                chart = (
+                    alt.Chart(st.session_state['financial_dfs']
+                              [network], title=network)
+                    .mark_area()
+                    .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
+                )
+                st.session_state['revenue_charts'] = {network: chart}
+            elif network in st.session_state['revenue_charts']:
+                chart = st.session_state['revenue_charts'][network]
+            else:
+                chart = (
+                    alt.Chart(st.session_state['financial_dfs']
+                              [network], title=network)
+                    .mark_area()
+                    .encode(x="date:T", y="cumulativeTotalRevenueUSD:Q")
+                )
+                st.session_state['revenue_charts'][network] = chart
         elif (chart_type == "TVL"):
-            chart = (
-                alt.Chart(st.session_state['financial_dfs']
-                          [network], title=network)
-                .mark_area()
-                .encode(x="date:T", y="totalValueLockedUSD:Q")
-            )
+            if 'tvl_charts' not in st.session_state:
+                chart = (
+                    alt.Chart(st.session_state['financial_dfs']
+                              [network], title=network)
+                    .mark_area()
+                    .encode(x="date:T", y="totalValueLockedUSD:Q")
+                )
+                st.session_state['tvl_charts'] = {network: chart}
+            elif network in st.session_state['tvl_charts']:
+                chart = st.session_state['tvl_charts'][network]
+            else:
+                chart = (
+                    alt.Chart(st.session_state['financial_dfs']
+                              [network], title=network)
+                    .mark_area()
+                    .encode(x="date:T", y="totalValueLockedUSD:Q")
+                )
+                st.session_state['revenue_charts'][network] = chart
         elif (chart_type == "Volume"):
-            chart = (
-                alt.Chart(st.session_state['financial_dfs']
-                          [network], title=network)
-                .mark_area()
-                .encode(x="date:T", y="cumulativeVolumeUSD:Q")
-            )
+            if 'volume_charts' not in st.session_state:
+                chart = (
+                    alt.Chart(st.session_state['financial_dfs']
+                              [network], title=network)
+                    .mark_area()
+                    .encode(x="date:T", y="cumulativeVolumeUSD:Q")
+                )
+                st.session_state['volume_charts'] = {network: chart}
+            elif network in st.session_state['volume_charts']:
+                chart = st.session_state['volume_charts'][network]
+            else:
+                chart = (
+                    alt.Chart(st.session_state['financial_dfs']
+                              [network], title=network)
+                    .mark_area()
+                    .encode(x="date:T", y="cumulativeVolumeUSD:Q")
+                )
+                st.session_state['volume_charts'][network] = chart
         charts.append(chart)
     return charts
 
 
+charts_loading = st.text("Generating charts...")
 gen_charts = generate_charts(choice)
 for chart in gen_charts:
     st.altair_chart(chart, use_container_width=True)
 
-data_loading.text("Loading data... done!")
+charts_loading.text("Charts ready!")
