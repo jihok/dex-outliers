@@ -10,6 +10,10 @@ st.title("anAMMolies")
 
 sg = Subgrounds()
 
+with st.sidebar:
+    choice = st.selectbox("Financial Metric Type", [
+                          "Revenue", "TVL", "Volume"])
+
 # TODO: this should be fetched from config json
 deployment_names = [
     "apeswap-bsc",
@@ -109,7 +113,7 @@ if 'subgraphs' not in st.session_state:
 if 'financial_dfs' not in st.session_state:
     st.session_state['financial_dfs'] = {}
 
-data_loading = st.text("Loading data...")
+data_loading = st.text("Fetching subgraphs...")
 
 # build subgraphs dict in session state by loading pending version if applicable or current version otherwise
 if (len(st.session_state['subgraphs']) == 0):
@@ -132,6 +136,8 @@ if (len(st.session_state['subgraphs']) == 0):
             st.session_state['subgraphs'][f"{x} (pending)"] = sg.load_subgraph(
                 f"https://api.thegraph.com/subgraphs/id/{id}")
 
+data_loading.text("Gathering data...")
+
 # make big_swaps_df after ensuring the subgraphs are in session state
 if 'big_swaps_df' not in st.session_state:
     st.session_state['big_swaps_df'] = {} if 'subgraphs' not in st.session_state else pd.concat(
@@ -140,12 +146,12 @@ if 'big_swaps_df' not in st.session_state:
         axis=0,
     )
 
-st.header("Potential Outlier Swaps")
-st.markdown(st.session_state['big_swaps_df'].to_markdown())
+outlier_container = st.container()
+with outlier_container:
+    st.header("Potential Outlier Swaps")
+    st.markdown(st.session_state['big_swaps_df'].to_markdown())
 
 data_loading.text("Loading data... done!")
-
-choice = st.selectbox("Financial Metric Type", ["Revenue", "TVL", "Volume"])
 
 
 def generate_charts(chart_type):
@@ -217,9 +223,13 @@ def generate_charts(chart_type):
     return charts
 
 
-charts_loading = st.text("Generating charts...")
+chart_container = st.container()
 gen_charts = generate_charts(choice)
-for chart in gen_charts:
-    st.altair_chart(chart, use_container_width=True)
+with chart_container:
+    charts_loading = st.text("Generating charts...")
+    for index, chart in enumerate(gen_charts):
+        st.altair_chart(chart, use_container_width=True)
+        charts_loading.text(
+            f"Generating charts... ({index + 1}/{len(st.session_state['subgraphs'])})")
 
-charts_loading.text("Charts ready!")
+    charts_loading.text("Charts ready!")
